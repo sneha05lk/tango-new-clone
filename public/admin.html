@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TangoLive Admin</title>
+    <meta name="description" content="TangoLive Admin Dashboard" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0a0818;
+            --card: rgba(255, 255, 255, 0.06);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #a855f7;
+            --accent2: #6366f1;
+            --text: #f0ecff;
+            --muted: rgba(240, 236, 255, .55);
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: radial-gradient(ellipse 70% 50% at 10% 0%, rgba(99, 102, 241, .25) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 90% 100%, rgba(168, 85, 247, .2) 0%, transparent 60%),
+                linear-gradient(160deg, #0a0818 0%, #0d0f2a 50%, #100820 100%);
+        }
+
+        /* Sidebar */
+        .layout {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: 220px;
+            flex-shrink: 0;
+            background: rgba(10, 8, 24, .9);
+            border-right: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-logo span {
+            font-size: 1.5rem;
+        }
+
+        .sidebar-logo h2 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #c084fc, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-logo small {
+            font-size: .65rem;
+            color: var(--muted);
+            display: block;
+        }
+
+        .nav-links {
+            flex: 1;
+            padding: 16px 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 20px;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: .9rem;
+            font-weight: 500;
+            transition: all .22s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--text);
+            background: rgba(168, 85, 247, .1);
+            border-left-color: var(--accent);
+        }
+
+        .nav-link .icon {
+            font-size: 1.1rem;
+        }
+
+        .sidebar-foot {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            font-size: .8rem;
+            color: var(--muted);
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            padding: 28px 24px;
+            overflow-y: auto;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        /* Stat cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 16px;
+            transition: all .25s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 14px 14px 0 0;
+        }
+
+        .stat-card.purple::before {
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+
+        .stat-card.blue::before {
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+        }
+
+        .stat-card.green::before {
+            background: linear-gradient(90deg, var(--success), #16a34a);
+        }
+
+        .stat-card.red::before {
+            background: linear-gradient(90deg, var(--danger), var(--warn));
+        }
+
+        .stat-card.orange::before {
+            background: linear-gradient(90deg, var(--warn), #f97316);
+        }
+
+        .stat-card.pink::before {
+            background: linear-gradient(90deg, #ec4899, #f43f5e);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+        }
+
+        .stat-icon {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-val {
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+
+        .stat-key {
+            font-size: .78rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* Charts */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        .chart-card h3 {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: var(--muted);
+        }
+
+        /* Tables */
+        .table-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .table-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-card-head h3 {
+            font-size: .95rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 11px 18px;
+            text-align: left;
+            font-size: .83rem;
+            border-bottom: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            background: rgba(255, 255, 255, .03);
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        tr:hover td {
+            background: rgba(168, 85, 247, .06);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 50px;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .05em;
+        }
+
+        .badge-live {
+            background: rgba(239, 68, 68, .2);
+            color: #ef4444;
+        }
+
+        .badge-offline {
+            background: rgba(255, 255, 255, .07);
+            color: var(--muted);
+        }
+
+        .badge-pending {
+            background: rgba(245, 158, 11, .15);
+            color: var(--warn);
+        }
+
+        .badge-approved {
+            background: rgba(34, 197, 94, .15);
+            color: var(--success);
+        }
+
+        .badge-rejected {
+            background: rgba(239, 68, 68, .15);
+            color: var(--danger);
+        }
+
+        .badge-admin {
+            background: rgba(168, 85, 247, .2);
+            color: var(--accent);
+        }
+
+        .badge-public {
+            background: rgba(99, 102, 241, .2);
+            color: #818cf8;
+        }
+
+        .badge-private {
+            background: rgba(239, 68, 68, .1);
+            color: var(--danger);
+        }
+
+        .badge-group {
+            background: rgba(34, 197, 94, .1);
+            color: var(--success);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 6px 14px;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            font-size: .8rem;
+            font-weight: 700;
+            transition: all .2s;
+        }
+
+        .btn-success {
+            background: rgba(34, 197, 94, .2);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, .3);
+        }
+
+        .btn-success:hover {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, .15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, .25);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        /* Login overlay */
+        .admin-login {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .8);
+            backdrop-filter: blur(12px);
+        }
+
+        .login-box {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 36px 32px;
+            width: 340px;
+        }
+
+        .login-box h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .login-box p {
+            color: var(--muted);
+            font-size: .88rem;
+            margin-bottom: 22px;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, .07);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: .9rem;
+            margin-bottom: 12px;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .login-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            font-size: .95rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #login-err {
+            color: var(--danger);
+            font-size: .82rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* Loading */
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid rgba(168, 85, 247, .2);
+            border-top-color: var(--accent);
+            animation: spin .8s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive */
+        @media(max-width:700px) {
+            .sidebar {
+                display: none;
+            }
+
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Admin Login -->
+    <div class="admin-login" id="admin-login">
+        <div class="login-box">
+            <h2>🎭 Admin Panel</h2>
+            <p>Sign in with your admin credentials</p>
+            <input type="email" id="a-email" placeholder="Email" />
+            <input type="password" id="a-password" placeholder="Password" />
+            <button onclick="adminLogin()">Login</button>
+            <div id="login-err"></div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span>🎭</span>
+                <div>
+                    <h2>TangoLive</h2><small>Admin Panel</small>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <div class="nav-link active" onclick="showPage('dashboard', this)"><span class="icon">📊</span>
+                    Dashboard</div>
+                <div class="nav-link" onclick="showPage('users', this)"><span class="icon">👥</span> Users</div>
+                <div class="nav-link" onclick="showPage('streams', this)"><span class="icon">📡</span> Streams</div>
+                <div class="nav-link" onclick="showPage('withdrawals', this)"><span class="icon">💸</span> Withdrawals
+                </div>
+            </nav>
+            <div class="sidebar-foot">
+                <div id="admin-name">Loading...</div>
+                <div style="margin-top:4px;cursor:pointer;color:var(--accent)" onclick="adminLogout()">← Logout</div>
+            </div>
+        </aside>
+
+        <!-- Content -->
+        <div class="content">
+
+            <!-- DASHBOARD -->
+            <div class="page active" id="page-dashboard">
+                <h1>📊 Dashboard Overview</h1>
+                <div class="stats-grid" id="stats-grid">
+                    <div class="spinner"></div>
+                </div>
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3>Gift Revenue (Last 7 Days)</h3>
+                        <canvas id="revenue-chart" height="180"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Stream Types Breakdown</h3>
+                        <canvas id="type-chart" height="180"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USERS -->
+            <div class="page" id="page-users">
+                <h1>👥 Users</h1>
+                <div class="table-card">
+                    <div class="table-card-head">
+                        <h3>All Users</h3>
+                    </div>
+                    <div id="users-table-wrap">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STREAMS -->
+            <div class="page" id="page-streams">
+                <h1>📡 Streams</h1>
+                <div class="table-card">
+                    <div class="table-card-head">
+                        <h3>All Streams</h3>
+                    </div>
+                    <div id="streams-table-wrap">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WITHDRAWALS -->
+            <div class="page" id="page-withdrawals">
+                <h1>💸 Withdrawal Requests</h1>
+                <div class="table-card">
+                    <div class="table-card-head">
+                        <h3>Pending Requests</h3>
+                    </div>
+                    <div id="withdrawals-table-wrap">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let adminToken = localStorage.getItem('tl_admin_token');
+        let revenueChart = null;
+        let typeChart = null;
+
+        async function api(method, path, body) {
+            const r = await fetch(path, {
+                method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+                body: body ? JSON.stringify(body) : undefined,
+            });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.message || 'Error');
+            return d;
+        }
+
+        async function adminLogin() {
+            const email = document.getElementById('a-email').value.trim().toLowerCase();
+            const password = document.getElementById('a-password').value;
+            try {
+                const user = await api('POST', '/api/auth/login', { email, password });
+                if (user.role !== 'admin') { showErr('Not an admin account'); return; }
+                adminToken = user.token;
+                localStorage.setItem('tl_admin_token', adminToken);
+                document.getElementById('admin-login').style.display = 'none';
+                document.getElementById('admin-name').textContent = user.username;
+                loadDashboard();
+            } catch (e) { showErr(e.message); }
+        }
+
+        function showErr(msg) {
+            const el = document.getElementById('login-err');
+            el.textContent = msg; el.style.display = 'block';
+        }
+
+        function adminLogout() {
+            adminToken = null; localStorage.removeItem('tl_admin_token');
+            document.getElementById('admin-login').style.display = 'flex';
+        }
+
+        function showPage(name, el) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+            document.getElementById('page-' + name).classList.add('active');
+            el.classList.add('active');
+            if (name === 'users') loadUsers();
+            if (name === 'streams') loadStreams();
+            if (name === 'withdrawals') loadWithdrawals();
+        }
+
+        async function loadDashboard() {
+            try {
+                const stats = await api('GET', '/api/admin/stats');
+                document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card purple"><div class="stat-icon">👥</div><div class="stat-val">${stats.totalUsers || 0}</div><div class="stat-key">Total Users</div></div>
+        <div class="stat-card blue"><div class="stat-icon">📡</div><div class="stat-val">${stats.totalStreams || 0}</div><div class="stat-key">Total Streams</div></div>
+        <div class="stat-card green"><div class="stat-icon">🔴</div><div class="stat-val">${stats.liveStreams || 0}</div><div class="stat-key">Live Now</div></div>
+        <div class="stat-card orange"><div class="stat-icon">🪙</div><div class="stat-val">${(stats.platformRevenue || 0).toLocaleString()}</div><div class="stat-key">Total Coins Gifted</div></div>
+        <div class="stat-card red"><div class="stat-icon">💸</div><div class="stat-val">${stats.pendingWithdrawals || 0}</div><div class="stat-key">Pending Withdrawals</div></div>
+        <div class="stat-card pink"><div class="stat-icon">🎁</div><div class="stat-val">${stats.totalGiftsSent || 0}</div><div class="stat-key">Gifts Sent</div></div>
+      `;
+
+                const chart = await api('GET', '/api/admin/revenue-chart');
+                const labels = chart.map(r => r.date);
+                const values = chart.map(r => r.total);
+                // Destroy old chart instance before creating new one to avoid "Canvas already in use" error
+                if (revenueChart) { revenueChart.destroy(); revenueChart = null; }
+                revenueChart = new Chart(document.getElementById('revenue-chart'), {
+                    type: 'line',
+                    data: {
+                        labels, datasets: [{
+                            label: 'Coins', data: values,
+                            borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,.15)',
+                            fill: true, tension: 0.4, pointBackgroundColor: '#a855f7', pointRadius: 4,
+                        }]
+                    },
+                    options: {
+                        responsive: true, plugins: { legend: { display: false } }, scales: {
+                            x: { ticks: { color: 'rgba(240,236,255,.5)' }, grid: { color: 'rgba(255,255,255,.05)' } },
+                            y: { ticks: { color: 'rgba(240,236,255,.5)' }, grid: { color: 'rgba(255,255,255,.05)' } },
+                        }
+                    }
+                });
+
+                const allStreams = await api('GET', '/api/admin/streams');
+                const types = { public: 0, private: 0, group: 0 };
+                allStreams.forEach(s => { if (types[s.type] !== undefined) types[s.type]++; });
+                if (typeChart) { typeChart.destroy(); typeChart = null; }
+                typeChart = new Chart(document.getElementById('type-chart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Public', 'Private', 'Group'],
+                        datasets: [{ data: Object.values(types), backgroundColor: ['#6366f1', '#ef4444', '#22c55e'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: 'rgba(240,236,255,.7)', pointStyle: 'circle', usePointStyle: true } } } }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadUsers() {
+            document.getElementById('users-table-wrap').innerHTML = '<div class="spinner"></div>';
+            try {
+                const users = await api('GET', '/api/admin/users');
+                document.getElementById('users-table-wrap').innerHTML = `
+        <table>
+          <thead><tr><th>#</th><th>Username</th><th>Email</th><th>Coins</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody>${users.map(u => `
+            <tr>
+              <td>${u.id}</td><td><strong>${u.username}</strong></td><td>${u.email}</td>
+              <td>🪙 ${u.coin_balance?.toLocaleString()}</td>
+              <td><span class="badge badge-${u.role === 'admin' ? 'admin' : (u.is_banned ? 'rejected' : 'approved')}">${u.is_banned ? 'Banned' : u.role}</span></td>
+              <td>${new Date(u.created_at).toLocaleDateString()}</td>
+              <td>
+                ${u.role !== 'admin' ? `
+                  <button class="btn btn-${u.is_banned ? 'success' : 'danger'}" onclick="handleToggleBan(${u.id}, ${u.is_banned ? 0 : 1})">
+                    ${u.is_banned ? 'Unban' : 'Ban'}
+                  </button>
+                ` : '—'}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+            } catch (e) { document.getElementById('users-table-wrap').innerHTML = '<p style="padding:16px;color:var(--danger)">' + e.message + '</p>'; }
+        }
+
+        async function loadStreams() {
+            document.getElementById('streams-table-wrap').innerHTML = '<div class="spinner"></div>';
+            try {
+                const streams = await api('GET', '/api/admin/streams');
+                document.getElementById('streams-table-wrap').innerHTML = `
+        <table>
+          <thead><tr><th>#</th><th>Title</th><th>Host</th><th>Category</th><th>Type</th><th>Status</th><th>Viewers</th><th>Actions</th></tr></thead>
+          <tbody>${streams.map(s => `
+            <tr>
+              <td>${s.id}</td><td><strong>${s.title}</strong></td><td>${s.username}</td>
+              <td>${s.category}</td>
+              <td><span class="badge badge-${s.type}">${s.type}</span></td>
+              <td><span class="badge ${s.is_live ? 'badge-live' : 'badge-offline'}">${s.is_live ? '🔴 LIVE' : 'Offline'}</span></td>
+              <td>👁 ${s.viewer_count}</td>
+              <td>
+                ${s.is_live ? `<button class="btn btn-danger" onclick="handleTerminateStream(${s.id})">End Stream</button>` : '—'}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+            } catch (e) { document.getElementById('streams-table-wrap').innerHTML = '<p style="padding:16px;color:var(--danger)">' + e.message + '</p>'; }
+        }
+
+        async function loadWithdrawals() {
+            document.getElementById('withdrawals-table-wrap').innerHTML = '<div class="spinner"></div>';
+            try {
+                const withdrawals = await api('GET', '/api/admin/withdrawals');
+                document.getElementById('withdrawals-table-wrap').innerHTML = `
+        <table>
+          <thead><tr><th>#</th><th>User</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>${withdrawals.map(w => `
+            <tr id="wr-${w.id}">
+              <td>${w.id}</td><td>${w.username}</td>
+              <td>🪙 ${w.amount?.toLocaleString()}</td>
+              <td><span class="badge badge-${w.status}">${w.status}</span></td>
+              <td>${new Date(w.created_at).toLocaleDateString()}</td>
+              <td>
+                ${w.status === 'pending' ? `
+                  <button class="btn btn-success" onclick="handleWithdrawal(${w.id},'approved')">✓ Approve</button>
+                  <button class="btn btn-danger" onclick="handleWithdrawal(${w.id},'rejected')">✗ Reject</button>
+                ` : '—'}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+            } catch (e) { document.getElementById('withdrawals-table-wrap').innerHTML = '<p style="padding:16px;color:var(--danger)">' + e.message + '</p>'; }
+        }
+
+        async function handleWithdrawal(id, status) {
+            try {
+                await api('PUT', `/api/admin/withdrawals/${id}`, { status });
+                const row = document.getElementById(`wr-${id}`);
+                row.querySelector('td:nth-child(4)').innerHTML = `<span class="badge badge-${status}">${status}</span>`;
+                row.querySelector('td:last-child').innerHTML = '—';
+            } catch (e) { alert(e.message); }
+        }
+
+        async function handleTerminateStream(id) {
+            if (!confirm('Are you sure you want to terminate this live stream?')) return;
+            try {
+                await api('PUT', `/api/admin/streams/${id}/terminate`);
+                alert('Stream terminated successfully.');
+                loadStreams();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function handleToggleBan(id, isBanned) {
+            const action = isBanned ? 'ban' : 'unban';
+            if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+            try {
+                await api('PUT', `/api/admin/users/${id}/ban`, { is_banned: isBanned });
+                alert(`User ${action}ned successfully.`);
+                loadUsers();
+            } catch (e) { alert(e.message); }
+        }
+
+        // Auto-login if token stored
+        if (adminToken) {
+            api('GET', '/api/auth/me').then(user => {
+                if (user.role === 'admin') {
+                    document.getElementById('admin-login').style.display = 'none';
+                    document.getElementById('admin-name').textContent = user.username;
+                    loadDashboard();
+                } else { adminLogout(); }
+            }).catch(() => { adminLogout(); }); // Show login screen on expired/invalid token
+        }
+    </script>
+</body>
+
+</html>

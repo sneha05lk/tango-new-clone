@@ -11,16 +11,8 @@
       "destination": "/server/index.js"
     },
     {
-      "source": "/uploads/(.*)",
-      "destination": "/client/uploads/$1"
-    },
-    {
-      "source": "/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico)",
-      "destination": "/client/$1.$2"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/client/index.html"
+      "destination": "/$1"
     }
   ]
 }

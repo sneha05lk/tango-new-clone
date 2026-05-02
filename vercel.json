@@ -1,11 +1,10 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "server/index.js",
-      "use": "@vercel/node"
+  "functions": {
+    "server/index.js": {
+      "runtime": "@vercel/node"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/api/(.*)",
@@ -16,10 +15,6 @@
       "dest": "client/uploads/$1"
     },
     {
-      "src": "/admin.html",
-      "dest": "client/admin.html"
-    },
-    {
       "src": "/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico)",
       "dest": "client/$1.$2"
     },
@@ -27,8 +22,5 @@
       "src": "/(.*)",
       "dest": "client/index.html"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }

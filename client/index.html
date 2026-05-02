@@ -490,11 +490,11 @@
   </div>
 
   <!-- Scripts -->
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
   <script>
     window.__APP_CONFIG__ = window.__APP_CONFIG__ || {
-      apiBase: "https://tangolive-backend.onrender.com"
+      apiBase: window.location.origin
     };
   </script>
   <script src="app.js"></script>

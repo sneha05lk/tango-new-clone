@@ -12,8 +12,20 @@
       "dest": "server/index.js"
     },
     {
+      "src": "/uploads/(.*)",
+      "dest": "client/uploads/$1"
+    },
+    {
+      "src": "/admin.html",
+      "dest": "client/admin.html"
+    },
+    {
+      "src": "/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico)",
+      "dest": "client/$1.$2"
+    },
+    {
       "src": "/(.*)",
-      "dest": "client/$1"
+      "dest": "client/index.html"
     }
   ],
   "env": {

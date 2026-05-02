@@ -319,6 +319,22 @@ const getRequests = async (req, res) => {
     }
 };
 
+// PUT /api/streams/:id/viewers - update viewer count
+const updateViewers = async (req, res) => {
+    const { count } = req.body;
+    try {
+        const { error } = await db
+            .from('streams')
+            .update({ viewer_count: count })
+            .eq('id', req.params.id);
+
+        if (error) return res.status(500).json({ message: error.message });
+        res.json({ message: 'Viewer count updated' });
+    } catch (e) {
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 module.exports = {
     getStreams,
     getAllStreams,
@@ -328,5 +344,6 @@ module.exports = {
     requestJoin,
     handleRequest,
     getRequests,
-    searchStreams
+    searchStreams,
+    updateViewers
 };

@@ -7,7 +7,8 @@ const RAW_API_BASE = (window.__APP_CONFIG__?.apiBase || '').trim();
 const API = RAW_API_BASE.replace(/\/+$/, '');
 let token = localStorage.getItem('tl_token');
 let currentUser = JSON.parse(localStorage.getItem('tl_user') || 'null');
-let socket = null;
+let socket = null; // This will now hold the Supabase Channel instance
+let supabaseClient = null; // Supabase client instance
 let currentStream = null;  // stream object being watched
 let profileStatsTimer = null;
 let chatPartnerId = null; // Currently chatting with this user ID
@@ -99,56 +100,60 @@ function createGlobalErrorContainer() {
     return div;
 }
 
-// ─── SOCKET INIT ─────────────────────────────────────────────────────
-function initSocket() {
+// ─── SUPABASE / REALTIME INIT ─────────────────────────────────────────
+async function initSocket() {
     if (socket) return;
-    // Remove transport restriction to allow polling fallback for better stability on unstable networks
-    socket = API
-        ? io(API, { auth: { token: token || null } })
-        : io({ auth: { token: token || null } });
-
-    socket.on('viewer-count', ({ count }) => {
-        $('hud-viewers').textContent = count;
-    });
-
-    socket.on('chat-message', (msg) => {
-        appendChat(msg.username, msg.message, false, msg.avatar);
-    });
-
-    socket.on('direct-message', data => {
-        handleIncomingDirectMessage(data);
-    });
-
-    socket.on('reaction', data => {
-        if (currentScreen === 'live' && currentStream?.livekit_room === data.roomName) {
-            showFloatingReaction(data.emoji);
+    
+    // Fetch config if not already available
+    if (!supabaseClient) {
+        try {
+            const config = await apiReq('GET', '/api/config');
+            if (!config.supabaseUrl || !config.supabaseKey) {
+                console.error('Supabase config missing');
+                return;
+            }
+            // Use the global 'supabase' object from the CDN script to create a client
+            supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseKey);
+        } catch (err) {
+            console.error('Failed to load Supabase config:', err);
+            return;
         }
+    }
+
+    // Main global channel for direct messages and notifications
+    const globalChannel = supabaseClient.channel('global-updates', {
+        config: { broadcast: { self: true } }
     });
 
-    socket.on('gift-animation', ({ sender, gift }) => {
-        showGiftBurst(gift.icon, sender, gift.name);
-    });
+    globalChannel
+        .on('broadcast', { event: 'direct-message' }, ({ payload }) => {
+            handleIncomingDirectMessage(payload);
+        })
+        .on('broadcast', { event: 'guest-invite-received' }, ({ payload }) => {
+            if (isGuestStreamer) return;
+            pendingGuestInvite = payload;
+            $('guest-invite-msg').textContent = `${payload.hostName} invited you to go live!`;
+            $('guest-invite-toast').classList.remove('hidden');
+            setTimeout(() => $('guest-invite-toast').classList.add('hidden'), 20000);
+        })
+        .on('broadcast', { event: 'guest-invite-reply' }, ({ payload }) => {
+            if (payload.accepted) {
+                appendChat('System', `🎉 ${payload.username} accepted your invite and is joining!`, true);
+            } else {
+                appendChat('System', `❌ ${payload.username} declined your invitation.`, true);
+            }
+        })
+        .on('broadcast', { event: 'guest-kicked' }, ({ payload }) => {
+            if (isGuestStreamer) {
+                alert('The host has ended your guest session.');
+                stopGuestStream();
+            }
+        });
 
-    socket.on('stream-ended', ({ message }) => {
-        if (!isHost) {
-            alert(message || 'Stream has ended.');
-            leaveLiveScreen();
-        }
-    });
-
-    socket.on('user-joined', ({ username }) => {
-        appendChat('System', `${username} joined 🎉`, true);
-    });
-
-    socket.on('join-request-received', ({ userId, username, streamId, requestId }) => {
-        showJoinRequestToast(userId, username, streamId, requestId);
-    });
-
-    // Listen for own join response (e.g., for private/group streams)
     if (currentUser) {
-        socket.on(`join-response-${currentUser.id}`, ({ approved, roomName }) => {
-            $('joinreq-status').textContent = approved ? '✅ Approved! Joining...' : '❌ Host denied your request.';
-            if (approved && currentStream) {
+        globalChannel.on('broadcast', { event: `join-response-${currentUser.id}` }, ({ payload }) => {
+            $('joinreq-status').textContent = payload.approved ? '✅ Approved! Joining...' : '❌ Host denied your request.';
+            if (payload.approved && currentStream) {
                 setTimeout(async () => {
                     closeModal('joinreq-modal');
                     try {
@@ -159,38 +164,93 @@ function initSocket() {
                 }, 1000);
             }
         });
-
-        // Co-streaming: Host invited me
-        socket.on('guest-invite-received', ({ hostId, hostName, roomName }) => {
-            if (isGuestStreamer) return; // Already streaming
-            pendingGuestInvite = { hostId, roomName };
-            $('guest-invite-msg').textContent = `${hostName} invited you to go live!`;
-            $('guest-invite-toast').classList.remove('hidden');
-            setTimeout(() => $('guest-invite-toast').classList.add('hidden'), 20000);
-        });
-
-        // Co-streaming: Viewer replied to host
-        socket.on('guest-invite-reply', ({ userId, username, accepted, roomName }) => {
-            if (accepted) {
-                appendChat('System', `🎉 ${username} accepted your invite and is joining!`, true);
-            } else {
-                appendChat('System', `❌ ${username} declined your invitation.`, true);
-            }
-        });
-
-        // Co-streaming: Host kicked me
-        socket.on('guest-kicked', ({ roomName }) => {
-            if (isGuestStreamer) {
-                alert('The host has ended your guest session.');
-                stopGuestStream();
-            }
-        });
-
-        // Co-streaming: Update grid when someone leaves
-        socket.on('guest-left', ({ userId }) => {
-            removeGuestVideo(userId);
-        });
     }
+
+    globalChannel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                socketConnected = true;
+                console.log('Supabase Realtime connected');
+            }
+        });
+
+    socket = globalChannel; // Store global channel as the default socket
+}
+
+function joinRoom(roomName) {
+    if (!supabaseClient || !roomName) return;
+
+    // Leave old room channel if exists
+    if (window.roomChannel) {
+        window.roomChannel.unsubscribe();
+    }
+
+    const channel = supabaseClient.channel(`room:${roomName}`, {
+        config: { 
+            broadcast: { self: true },
+            presence: { key: currentUser ? currentUser.id : 'guest-' + Math.random().toString(36).substr(2, 5) }
+        }
+    });
+
+    channel
+        .on('broadcast', { event: 'chat-message' }, ({ payload }) => {
+            appendChat(payload.username, payload.message, false, payload.avatar);
+        })
+        .on('broadcast', { event: 'reaction' }, ({ payload }) => {
+            if (currentScreen === 'live' && currentStream?.livekit_room === roomName) {
+                showFloatingReaction(payload.emoji);
+            }
+        })
+        .on('broadcast', { event: 'gift-animation' }, ({ payload }) => {
+            showGiftBurst(payload.gift.icon, payload.sender, payload.gift.name);
+        })
+        .on('broadcast', { event: 'stream-ended' }, ({ payload }) => {
+            if (!isHost) {
+                alert(payload.message || 'Stream has ended.');
+                leaveLiveScreen();
+            }
+        })
+        .on('broadcast', { event: 'user-joined' }, ({ payload }) => {
+            appendChat('System', `${payload.username} joined 🎉`, true);
+        })
+        .on('broadcast', { event: 'viewer-count' }, ({ payload }) => {
+            $('hud-viewers').textContent = payload.count;
+        })
+        .on('broadcast', { event: 'join-request-received' }, ({ payload }) => {
+            // Only host should respond, but anyone in room sees the toast if we want
+            if (isHost) {
+                showJoinRequestToast(payload.userId, payload.username, payload.streamId, payload.requestId);
+            }
+        })
+        .on('broadcast', { event: 'guest-left' }, ({ payload }) => {
+            removeGuestVideo(payload.userId);
+        })
+        .on('presence', { event: 'sync' }, () => {
+            const state = channel.presenceState();
+            const count = Object.keys(state).length;
+            $('hud-viewers').textContent = count;
+            
+            // Sync viewer count to DB (if host)
+            if (isHost) {
+                apiReq('PUT', `/api/streams/${currentStream.id}/viewers`, { count }).catch(() => {});
+            }
+        })
+        .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`Joined room: ${roomName}`);
+                channel.send({
+                    type: 'broadcast',
+                    event: 'user-joined',
+                    payload: { username: currentUser ? currentUser.username : 'Guest' }
+                });
+                
+                await channel.track({
+                    online_at: new Date().toISOString(),
+                    username: currentUser ? currentUser.username : 'Guest'
+                });
+            }
+        });
+
+    window.roomChannel = channel;
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────
@@ -411,8 +471,8 @@ function afterLogin() {
     $('guest-timer-popup').classList.add('hidden');
     
     // Explicitly disconnect old guest socket before creating a new authenticated one
-    if (socket) {
-        socket.disconnect();
+    if (supabaseClient) {
+        supabaseClient.removeAllChannels();
         socket = null;
     }
     
@@ -426,8 +486,10 @@ function logout() {
     currentUser = null;
     localStorage.removeItem('tl_token');
     localStorage.removeItem('tl_user');
-    socket?.disconnect();
-    socket = null;
+    if (supabaseClient) {
+        supabaseClient.removeAllChannels();
+        socket = null;
+    }
     renderTopBar();
     navigateTo('home');
     showAuthOverlay('login');
@@ -765,10 +827,7 @@ async function updateFollowButton() {
 }
 
 
-function joinRoom(roomName) {
-    if (!socket || !roomName) return;
-    socket.emit('join-room', { roomName });
-}
+// End of previous block
 
 // ─── LIVEKIT INTEGRATION ──────────────────────────────────────────────
 function shouldPublishLocalTracks() {
@@ -1131,7 +1190,7 @@ async function resumeAudio() {
 
 function leaveLiveScreen() {
     if (socket && currentStream) {
-        socket.emit('leave-room', { roomName: currentStream.livekit_room });
+        // roomChannel.unsubscribe() is handled in joinRoom
     }
     if (livekitRoom) {
         markManualLivekitDisconnect();
@@ -1275,7 +1334,11 @@ async function endStream() {
     if (!currentStream || !isHost) return;
     try {
         await apiReq('PUT', `/api/streams/${currentStream.id}/end`);
-        socket?.emit('end-stream', { roomName: currentStream.livekit_room });
+        window.roomChannel?.send({
+            type: 'broadcast',
+            event: 'stream-ended',
+            payload: { message: 'The host has ended the stream.' }
+        });
         leaveLiveScreen();
     } catch (err) { alert(err.message); }
 }
@@ -1288,7 +1351,11 @@ function sendChatMessage(context) {
     const input = $('chat-input');
     const msg = input.value.trim();
     if (!msg || !currentStream) return;
-    socket?.emit('chat-message', { roomName: currentStream.livekit_room, message: msg });
+    window.roomChannel?.send({
+        type: 'broadcast',
+        event: 'chat-message',
+        payload: { username: currentUser ? currentUser.username : 'Guest', message: msg, avatar: currentUser ? currentUser.avatar : '' }
+    });
     input.value = '';
 }
 function appendChat(username, message, isSystem = false, avatar = '') {
@@ -1313,7 +1380,11 @@ function appendChat(username, message, isSystem = false, avatar = '') {
 // ─── REACTIONS ─────────────────────────────────────────────────────────
 function sendReaction(emoji) {
     if (!currentStream) return;
-    socket?.emit('reaction', { roomName: currentStream.livekit_room, emoji });
+    window.roomChannel?.send({
+        type: 'broadcast',
+        event: 'reaction',
+        payload: { emoji, username: currentUser ? currentUser.username : 'Guest' }
+    });
     showFloatingReaction(emoji);
 }
 function showFloatingReaction(emoji) {
@@ -1414,10 +1485,14 @@ async function sendGift(giftInput) {
             stream_id: currentStream.id,
             receiver_id: receiverId,
         });
-        socket?.emit('gift-sent', {
-            roomName: currentStream?.livekit_room,
-            gift,
-            receiverUsername: currentStream?.username,
+        window.roomChannel?.send({
+            type: 'broadcast',
+            event: 'gift-animation',
+            payload: {
+                sender: currentUser ? currentUser.username : 'Guest',
+                receiver: currentStream?.username,
+                gift,
+            }
         });
         showGiftBurst(gift.icon, 'You', gift.name);
         closeGiftPanel();
@@ -1590,13 +1665,32 @@ function renderThreadMessages(messages) {
     box.scrollTop = box.scrollHeight;
 }
 
-function sendDirectMessage() {
+async function sendDirectMessage() {
     const input = $('chat-thread-input');
     const msg = input.value.trim();
     if (!msg || !chatPartnerId) return;
 
-    socket.emit('direct-message', { receiverId: chatPartnerId, message: msg });
-    input.value = '';
+    try {
+        // 1. Save to Database via API
+        const savedMsg = await apiReq('POST', '/api/messages', {
+            receiver_id: chatPartnerId,
+            message: msg
+        });
+
+        // 2. Broadcast via Supabase Realtime for instant UI update on receiver side
+        socket?.send({
+            type: 'broadcast',
+            event: 'direct-message',
+            payload: savedMsg
+        });
+
+        input.value = '';
+        // Note: We don't call handleIncomingDirectMessage manually here because 
+        // the broadcast will come back to us (self: true) and handle it.
+    } catch (err) {
+        console.error('Failed to send direct message:', err);
+        alert('Could not send message. Please try again.');
+    }
 }
 
 function handleIncomingDirectMessage(data) {
@@ -1886,7 +1980,11 @@ function handleTrackMuteChange(pub, part, isMuted) {
 // ─── GUEST STREAMING LOGIC ───────────────────────────────────────────
 function inviteToStream() {
     if (!viewProfileUserId || !currentStream || !isHost) return;
-    socket?.emit('guest-invite', { userId: viewProfileUserId, roomName: currentStream.livekit_room });
+    socket?.send({
+        type: 'broadcast',
+        event: 'guest-invite-received',
+        payload: { hostId: currentUser.id, hostName: currentUser.username, roomName: currentStream.livekit_room }
+    });
     appendChat('System', `📡 Invitation sent to ${$('v-profile-username').textContent}`, true);
     closeModal('v-profile-modal'); 
     navigateTo('live');
@@ -1897,7 +1995,11 @@ async function acceptGuestInvite(accepted) {
     if (!pendingGuestInvite) return;
     
     const { hostId, roomName } = pendingGuestInvite;
-    socket?.emit('guest-invite-response', { hostId, accepted, roomName });
+    socket?.send({
+        type: 'broadcast',
+        event: 'guest-invite-reply',
+        payload: { userId: currentUser.id, username: currentUser.username, accepted, roomName }
+    });
     
     if (accepted) {
         switchToGuestStreamer(roomName);
@@ -1930,7 +2032,11 @@ async function switchToGuestStreamer(roomName) {
 function stopGuestStream() {
     if (!isGuestStreamer) return;
     isGuestStreamer = false;
-    socket?.emit('end-guest-session', { roomName: currentStream?.livekit_room });
+    window.roomChannel?.send({
+        type: 'broadcast',
+        event: 'guest-left',
+        payload: { userId: currentUser.id }
+    });
     
     // Re-join as viewer (no publish)
     if (currentStream) {
@@ -1942,7 +2048,17 @@ function stopGuestStream() {
 
 function kickGuest(userId) {
     if (!isHost || !currentStream) return;
-    socket?.emit('kick-guest', { userId, roomName: currentStream.livekit_room });
+    socket?.send({
+        type: 'broadcast',
+        event: 'guest-kicked',
+        payload: { roomName: currentStream.livekit_room }
+    });
+    // Also notify the room
+    window.roomChannel?.send({
+        type: 'broadcast',
+        event: 'guest-left',
+        payload: { userId }
+    });
 }
 
 // ─── HOST CONTROLS ────────────────────────────────────────────────────
@@ -2048,10 +2164,16 @@ async function showJoinRequestModal(stream) {
     try {
         const reqData = await apiReq('POST', `/api/streams/${stream.id}/request`, {});
         $('joinreq-status').textContent = 'Waiting for host...';
-        socket?.emit('join-request', {
-            roomName: stream.livekit_room,
-            streamId: stream.id,
-            requestId: reqData?.requestId || null
+        window.roomChannel?.send({
+            type: 'broadcast',
+            event: 'join-request-received',
+            payload: {
+                userId: currentUser.id,
+                username: currentUser.username,
+                avatar: currentUser.avatar,
+                streamId: stream.id,
+                requestId: reqData?.requestId || null
+            }
         });
     } catch (err) {
         $('joinreq-status').textContent = `❌ ${err.message || 'Failed to send request.'}`;
@@ -2079,7 +2201,11 @@ async function respondToJoinRequest(approved) {
             return;
         }
     }
-    socket?.emit('join-request-response', { userId, approved, roomName: currentStream?.livekit_room });
+    socket?.send({
+        type: 'broadcast',
+        event: 'join-response-' + userId,
+        payload: { approved, roomName: currentStream?.livekit_room }
+    });
     pendingJoinRequest = null;
 }
 

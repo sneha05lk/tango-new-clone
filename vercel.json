@@ -5,22 +5,22 @@
       "runtime": "@vercel/node"
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "server/index.js"
+      "source": "/api/(.*)",
+      "destination": "/server/index.js"
     },
     {
-      "src": "/uploads/(.*)",
-      "dest": "client/uploads/$1"
+      "source": "/uploads/(.*)",
+      "destination": "/client/uploads/$1"
     },
     {
-      "src": "/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico)",
-      "dest": "client/$1.$2"
+      "source": "/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico)",
+      "destination": "/client/$1.$2"
     },
     {
-      "src": "/(.*)",
-      "dest": "client/index.html"
+      "source": "/(.*)",
+      "destination": "/client/index.html"
     }
   ]
 }

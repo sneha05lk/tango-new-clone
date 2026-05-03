@@ -103,7 +103,7 @@ function createGlobalErrorContainer() {
 // ─── SUPABASE / REALTIME INIT ─────────────────────────────────────────
 async function initSocket() {
     if (socket) return;
-    
+
     // Fetch config if not already available
     if (!supabaseClient) {
         try {
@@ -167,11 +167,11 @@ async function initSocket() {
     }
 
     globalChannel.subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-                socketConnected = true;
-                console.log('Supabase Realtime connected');
-            }
-        });
+        if (status === 'SUBSCRIBED') {
+            socketConnected = true;
+            console.log('Supabase Realtime connected');
+        }
+    });
 
     socket = globalChannel; // Store global channel as the default socket
 }
@@ -185,7 +185,7 @@ function joinRoom(roomName) {
     }
 
     const channel = supabaseClient.channel(`room:${roomName}`, {
-        config: { 
+        config: {
             broadcast: { self: true },
             presence: { key: currentUser ? currentUser.id : 'guest-' + Math.random().toString(36).substr(2, 5) }
         }
@@ -228,10 +228,10 @@ function joinRoom(roomName) {
             const state = channel.presenceState();
             const count = Object.keys(state).length;
             $('hud-viewers').textContent = count;
-            
+
             // Sync viewer count to DB (if host)
             if (isHost) {
-                apiReq('PUT', `/api/streams/${currentStream.id}/viewers`, { count }).catch(() => {});
+                apiReq('PUT', `/api/streams/${currentStream.id}/viewers`, { count }).catch(() => { });
             }
         })
         .subscribe(async (status) => {
@@ -242,7 +242,7 @@ function joinRoom(roomName) {
                     event: 'user-joined',
                     payload: { username: currentUser ? currentUser.username : 'Guest' }
                 });
-                
+
                 await channel.track({
                     online_at: new Date().toISOString(),
                     username: currentUser ? currentUser.username : 'Guest'
@@ -257,7 +257,7 @@ function joinRoom(roomName) {
 function initSearch() {
     const searchInput = $('global-search');
     const searchWrap = document.querySelector('.search-bar-wrap');
-    
+
     searchInput.addEventListener('input', debounce((e) => {
         const query = e.target.value.trim();
         if (query.length >= 2) {
@@ -309,12 +309,12 @@ async function searchAll(query) {
 function renderSearchResults(streams, users) {
     const feed = $('stream-feed');
     let html = '';
-    
+
     if (streams.length) {
         html += '<h3 style="grid-column: 1/-1; font-size: 1.1rem; margin: 10px 0;">Live Streams</h3>';
         html += renderStreamFeedHTML(streams);
     }
-    
+
     if (users.length) {
         html += '<h3 style="grid-column: 1/-1; font-size: 1.1rem; margin: 15px 0 10px;">Users</h3>';
         html += users.map(u => {
@@ -329,11 +329,11 @@ function renderSearchResults(streams, users) {
             `;
         }).join('');
     }
-    
+
     if (!streams.length && !users.length) {
         html = '<div class="feed-loading"><p>No results found.</p></div>';
     }
-    
+
     feed.innerHTML = html;
 }
 
@@ -393,7 +393,7 @@ function navigateTo(screenName) {
     } else {
         stopCamera();
     }
-    
+
     if (screenName === 'wallet') loadWallet();
     if (screenName === 'profile') renderProfile();
     if (screenName === 'chat') renderChatList();
@@ -469,13 +469,13 @@ function saveSession(user) {
 function afterLogin() {
     clearGuestTimer();
     $('guest-timer-popup').classList.add('hidden');
-    
+
     // Explicitly disconnect old guest socket before creating a new authenticated one
     if (supabaseClient) {
         supabaseClient.removeAllChannels();
         socket = null;
     }
-    
+
     initSocket();
     renderTopBar();
     navigateTo('home');
@@ -545,7 +545,7 @@ async function loadStreams(cat) {
     try {
         let endpoint = currentUser ? '/api/streams/all' : '/api/streams';
         if (cat === 'following') endpoint += '?category=following';
-        
+
         const streams = await apiReq('GET', endpoint);
         renderStreamFeed(streams, cat);
     } catch {
@@ -565,7 +565,7 @@ function renderStreamFeed(streams, cat) {
             feed.innerHTML = '<div class="feed-loading"><span style="font-size:2.5rem">🤝</span><p>No one you follow is live. Explore some new hosts!</p></div>';
             return;
         }
-        
+
         filtered = [
             { id: "'mock1'", username: 'GamingGuru', category: 'Gaming', viewer_count: 1240, type: 'public', title: 'Late Night Valorant Ranked!' },
             { id: "'mock2'", username: 'MelodyMaker', category: 'Music', viewer_count: 850, type: 'public', title: 'Acoustic Covers & Chill' },
@@ -620,7 +620,8 @@ function renderStreamFeedHTML(streams) {
         <div class="stream-card-cat">${s.category || 'General'}</div>
       </div>
     </div>
-  `; }).join('');
+  `;
+    }).join('');
 }
 
 document.querySelectorAll('.cat-pill').forEach(pill => {
@@ -664,7 +665,7 @@ async function enterLiveScreen(stream, existingToken = null) {
     if (!shouldPublishLocalTracks()) {
         stopCamera(); // viewers do not need local preview stream
     }
-    
+
     // NEW: Reset co-streaming states for the new session
     activeGuestIds.clear();
     isGuestStreamer = false;
@@ -675,19 +676,19 @@ async function enterLiveScreen(stream, existingToken = null) {
     $('hud-title').textContent = stream.title || 'Live Stream';
     $('hud-viewers').textContent = stream.viewer_count || 0;
     $('hud-host-name').textContent = stream.username || 'Host';
-    
+
     setAvatar($('hud-host-avatar'), stream.avatar, stream.username || 'H');
 
     // Show/hide end stream button & host controls
     const endBtn = $('end-stream-btn');
     if (endBtn) endBtn.classList.toggle('hidden', !isHost);
-    
+
     const hostCtrls = $('host-controls');
     if (hostCtrls) hostCtrls.classList.toggle('hidden', !isHost);
-    
+
     const viewerCtrls = $('viewer-controls');
     if (viewerCtrls) viewerCtrls.classList.toggle('hidden', isHost);
-    
+
     // Initial state for host/viewer toggles
     if (isHost) {
         const micBtn = $('hud-mic-btn');
@@ -739,7 +740,7 @@ async function enterLiveScreen(stream, existingToken = null) {
         if (mediaStream) {
             localVid.srcObject = mediaStream;
             localVid.classList.remove('hidden');
-            localVid.play().catch(() => {});
+            localVid.play().catch(() => { });
         }
         // Note: We don't add '__local__' to activeGuestIds anymore. 
         // updateVideoGrid() handles the local user separately.
@@ -1041,7 +1042,7 @@ function handleTrackSubscribed(track, publication, participant) {
         el.muted = false;
         el.autoplay = true;
         el.playsInline = true;
-        document.body.appendChild(el); 
+        document.body.appendChild(el);
         el.play().catch(e => {
             console.warn('Initial audio play() failed:', e);
             showAudioPrompt();
@@ -1063,17 +1064,17 @@ function renderParticipantVideo(participant, track) {
         wrapper = document.createElement('div');
         wrapper.id = wrapperId;
         wrapper.className = 'video-wrapper';
-        
+
         const videoEl = document.createElement('video');
         videoEl.id = `video-${participant.identity}`;
         videoEl.className = 'live-video';
         videoEl.autoplay = true;
         videoEl.playsInline = true;
-        
+
         const badge = document.createElement('div');
         badge.className = 'guest-name-badge';
         badge.textContent = participant.identity || 'Guest';
-        
+
         wrapper.appendChild(videoEl);
         wrapper.appendChild(badge);
 
@@ -1100,7 +1101,7 @@ function renderParticipantVideo(participant, track) {
 function handleTrackUnsubscribed(track, publication, participant) {
     track.detach();
     if (track.kind === 'video') {
-       removeGuestVideo(participant.identity);
+        removeGuestVideo(participant.identity);
     } else if (track.kind === 'audio') {
         const audioEl = $(`audio-track-${participant.identity}`);
         if (audioEl) {
@@ -1124,10 +1125,10 @@ function updateVideoGrid() {
     if (!area) return;
 
     const count = activeGuestIds.size + (isHost || isGuestStreamer ? 1 : 0); // Participants + Local 
-    
+
     // Clear old grid classes
     area.classList.remove('grid-1', 'grid-2', 'grid-3', 'grid-4');
-    
+
     if (count <= 1) area.classList.add('grid-1');
     else if (count === 2) area.classList.add('grid-2');
     else if (count === 3) area.classList.add('grid-3');
@@ -1208,7 +1209,7 @@ function leaveLiveScreen() {
     isGuestStreamer = false;
     activeGuestIds.clear();
     $('video-area').innerHTML = ''; // Clean up all video elements
-    
+
     clearGuestTimer();
     $('guest-timer-popup').classList.add('hidden');
     stopCamera();
@@ -1366,7 +1367,7 @@ function appendChat(username, message, isSystem = false, avatar = '') {
     if (!box) return;
     const div = document.createElement('div');
     div.className = `chat-msg ${isSystem ? 'system-msg' : ''}`;
-    
+
     if (isSystem) {
         div.innerHTML = `<span class="chat-msg-text" style="color:var(--accent2); font-weight:600">${message}</span>`;
     } else {
@@ -1375,7 +1376,7 @@ function appendChat(username, message, isSystem = false, avatar = '') {
         const avatarHtml = `<div class="chat-avatar" style="${avatarUrl ? `background-image:url(${avatarUrl});background-size:cover;background-position:center;` : `background:var(--accent)`}">${avatarUrl ? '' : initials}</div>`;
         div.innerHTML = `${avatarHtml}<div class="chat-msg-content"><span class="chat-msg-name">${username}</span><span class="chat-msg-text">${message}</span></div>`;
     }
-    
+
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
 }
@@ -1633,7 +1634,8 @@ async function renderChatList() {
          <div style="font-size:0.75rem;color:var(--text);opacity:0.5">${formatTime(c.time)}</div>
          ${!c.is_read && c.partner_id !== currentUser.id ? '<div style="width:8px;height:8px;background:var(--accent);border-radius:50%"></div>' : ''}
       </div>
-    `; }).join('');
+    `;
+        }).join('');
     } catch (err) {
         console.error(err);
     }
@@ -1737,13 +1739,13 @@ async function renderProfile() {
         try {
             // Fetch detailed profile data
             const data = await apiReq('GET', `/api/users/profile/${currentUser.id}`);
-            
+
             $('profile-username').textContent = data.username;
-            $('profile-email').textContent = currentUser.email; 
+            $('profile-email').textContent = currentUser.email;
             $('profile-bio').textContent = data.bio || '';
             $('profile-followers').textContent = (data.followers_count || 0).toLocaleString();
             $('profile-followers').parentElement.onclick = () => openFollowList('followers', data.id);
-            
+
             $('profile-following').textContent = (data.following_count || 0).toLocaleString();
             $('profile-following').parentElement.onclick = () => openFollowList('following', data.id);
             $('profile-wallet').textContent = (data.coin_balance || 0).toLocaleString();
@@ -1784,12 +1786,12 @@ async function saveProfile() {
     try {
         // 1. Update basic info
         await apiReq('PUT', '/api/users/profile', { username, bio });
-        
+
         // 2. Update avatar if a new one was selected
         if (avatarFile) {
             const formData = new FormData();
             formData.append('avatar', avatarFile);
-            
+
             const res = await fetch(`${API}/api/users/profile/avatar`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -1809,7 +1811,7 @@ async function saveProfile() {
         currentUser.username = username;
         currentUser.bio = bio;
         localStorage.setItem('tl_user', JSON.stringify(currentUser));
-        
+
         closeModal('profile-modal');
         renderProfile();
         renderTopBar();
@@ -1825,10 +1827,10 @@ async function viewUserProfile(userId) {
         navigateTo('profile');
         return;
     }
-    
+
     viewProfileUserId = userId;
     navigateTo('view-profile');
-    
+
     // Reset view
     $('v-profile-username').textContent = 'Loading...';
     $('v-profile-bio').textContent = '';
@@ -1836,19 +1838,19 @@ async function viewUserProfile(userId) {
     $('v-profile-following').textContent = '0';
     $('v-profile-coins').textContent = '0';
     $('v-follow-btn').classList.add('hidden');
-    
+
     try {
         const data = await apiReq('GET', `/api/users/profile/${userId}`);
-        
+
         $('v-profile-username').textContent = data.username;
         $('v-profile-bio').textContent = data.bio || 'No bio provided.';
         $('v-profile-followers').textContent = (data.followers_count || 0).toLocaleString();
         $('v-profile-followers').parentElement.onclick = () => openFollowList('followers', data.id);
-        
+
         $('v-profile-following').textContent = (data.following_count || 0).toLocaleString();
         $('v-profile-following').parentElement.onclick = () => openFollowList('following', data.id);
         $('v-profile-coins').textContent = (data.earned_coins || 0).toLocaleString();
-        
+
         setAvatar($('v-profile-avatar'), data.avatar, data.username);
 
         // Setup message button
@@ -1961,7 +1963,7 @@ function goBackFromFollowList() {
 function handleTrackMuteChange(pub, part, isMuted) {
     const identity = part.identity;
     const wrapper = $(`video-wrapper-${identity}`);
-    
+
     if (pub.kind === 'video') {
         const video = wrapper ? wrapper.querySelector('video') : null;
         if (isMuted) {
@@ -1989,21 +1991,21 @@ function inviteToStream() {
         payload: { hostId: currentUser.id, hostName: currentUser.username, roomName: currentStream.livekit_room }
     });
     appendChat('System', `📡 Invitation sent to ${$('v-profile-username').textContent}`, true);
-    closeModal('v-profile-modal'); 
+    closeModal('v-profile-modal');
     navigateTo('live');
 }
 
 async function acceptGuestInvite(accepted) {
     $('guest-invite-toast').classList.add('hidden');
     if (!pendingGuestInvite) return;
-    
+
     const { hostId, roomName } = pendingGuestInvite;
     socket?.send({
         type: 'broadcast',
         event: 'guest-invite-reply',
         payload: { userId: currentUser.id, username: currentUser.username, accepted, roomName }
     });
-    
+
     if (accepted) {
         switchToGuestStreamer(roomName);
     }
@@ -2021,10 +2023,10 @@ async function switchToGuestStreamer(roomName) {
         });
 
         isGuestStreamer = true;
-        
+
         // 2. Reconnect to LiveKit as Guest Streamer
         await connectToLiveKit(tkData.token, roomName);
-        
+
         appendChat('System', '🎥 You are now live as a guest!', true);
     } catch (err) {
         alert('Failed to join as guest: ' + err.message);
@@ -2040,7 +2042,7 @@ function stopGuestStream() {
         event: 'guest-left',
         payload: { userId: currentUser.id }
     });
-    
+
     // Re-join as viewer (no publish)
     if (currentStream) {
         enterLiveScreen(currentStream).catch((err) => {
@@ -2067,7 +2069,7 @@ function kickGuest(userId) {
 // ─── HOST CONTROLS ────────────────────────────────────────────────────
 async function toggleMic() {
     if (!livekitRoom || !shouldPublishLocalTracks()) return;
-    
+
     const connectionState = String(livekitRoom.state || '').toLowerCase();
     const isConnected =
         connectionState === 'connected' ||
@@ -2135,7 +2137,7 @@ async function toggleMic() {
 
 async function toggleCam() {
     if (!livekitRoom || !shouldPublishLocalTracks()) return;
-    
+
     if (livekitRoom.state !== 'connected') {
         alert('Still connecting to the stream engine... Please wait a second.');
         return;
@@ -2168,7 +2170,7 @@ function toggleViewerAudio() {
 
     const isMuted = audioEl.muted;
     audioEl.muted = !isMuted;
-    
+
     if (audioEl.muted) {
         btn.classList.add('muted');
         btn.textContent = '🔇';
@@ -2188,7 +2190,7 @@ function toggleViewerVideo() {
     if (!videoEl || !btn) return;
 
     const isHidden = videoEl.style.display === 'none';
-    
+
     if (isHidden) {
         videoEl.style.display = 'block';
         btn.classList.remove('muted');
@@ -2294,11 +2296,11 @@ function closeModal(id) { $(id)?.classList.add('hidden'); }
             closeGiftPanel();
         }
     });
-    
+
     // Pre-fetch config to speed up connections
     apiReq('GET', '/api/config').then(data => {
         cachedLivekitUrl = normalizeLivekitUrl(data.livekitUrl);
-    }).catch(() => {});
+    }).catch(() => { });
 
     // If no user, show auth on first load after brief delay
     if (!currentUser) {

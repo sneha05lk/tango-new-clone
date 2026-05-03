@@ -1793,7 +1793,8 @@ textarea#edit-bio:focus {
 }
 
 /* ─── LIVE HUD CONTROLS ───────────────────────────────────────── */
-.host-controls {
+.host-controls,
+.viewer-controls {
   display: flex;
   gap: 12px;
   align-items: center;

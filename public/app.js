@@ -685,6 +685,9 @@ async function enterLiveScreen(stream, existingToken = null) {
     const hostCtrls = $('host-controls');
     if (hostCtrls) hostCtrls.classList.toggle('hidden', !isHost);
     
+    const viewerCtrls = $('viewer-controls');
+    if (viewerCtrls) viewerCtrls.classList.toggle('hidden', isHost);
+    
     // Initial state for host/viewer toggles
     if (isHost) {
         const micBtn = $('hud-mic-btn');
@@ -2152,6 +2155,50 @@ async function toggleCam() {
         }
     } finally {
         btn.disabled = false;
+    }
+}
+
+// ─── VIEW VIEW CONTROLS (Local Playback) ──────────────────────────────
+function toggleViewerAudio() {
+    if (!currentStream) return;
+    const audioId = `audio-track-${currentStream.username}`;
+    const audioEl = $(audioId);
+    const btn = $('viewer-mic-btn');
+    if (!audioEl || !btn) return;
+
+    const isMuted = audioEl.muted;
+    audioEl.muted = !isMuted;
+    
+    if (audioEl.muted) {
+        btn.classList.add('muted');
+        btn.textContent = '🔇';
+        btn.title = 'Unmute Audio';
+    } else {
+        btn.classList.remove('muted');
+        btn.textContent = '🔊';
+        btn.title = 'Mute Audio';
+    }
+}
+
+function toggleViewerVideo() {
+    if (!currentStream) return;
+    const videoId = `video-${currentStream.username}`;
+    const videoEl = $(videoId);
+    const btn = $('viewer-cam-btn');
+    if (!videoEl || !btn) return;
+
+    const isHidden = videoEl.style.display === 'none';
+    
+    if (isHidden) {
+        videoEl.style.display = 'block';
+        btn.classList.remove('muted');
+        btn.textContent = '👁️';
+        btn.title = 'Hide Video';
+    } else {
+        videoEl.style.display = 'none';
+        btn.classList.add('muted');
+        btn.textContent = '🚫';
+        btn.title = 'Show Video';
     }
 }
 

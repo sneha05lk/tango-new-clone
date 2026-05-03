@@ -188,6 +188,12 @@
                 title="Enable/Disable Camera">📷</button>
             </div>
 
+            <!-- New: Viewer Playback Controls -->
+            <div id="viewer-controls" class="viewer-controls hidden">
+              <button id="viewer-mic-btn" class="hud-ctrl-btn" onclick="toggleViewerAudio()" title="Mute/Unmute Audio">🔊</button>
+              <button id="viewer-cam-btn" class="hud-ctrl-btn" onclick="toggleViewerVideo()" title="Hide/Show Video">👁️</button>
+            </div>
+
             <div class="hud-host">
               <div class="host-avatar" id="hud-host-avatar"></div>
               <div class="host-meta-wrap">

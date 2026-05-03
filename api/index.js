@@ -28,8 +28,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the public directory
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// API Routes (Static files are served automatically by Vercel from /public)
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -56,10 +55,7 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// Catch-all: serve SPA for any non-API route
-app.get(/^(?!\/api).*/, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
+// Note: Root and static files are served by Vercel Edge, not this function.
 
 // Error Handling Middleware
 app.use(notFound);

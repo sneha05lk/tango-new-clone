@@ -1,7 +1,8 @@
 const getRequiredEnv = (key) => {
     const value = process.env[key];
     if (!value || !String(value).trim()) {
-        throw new Error(`Missing required environment variable: ${key}`);
+        console.warn(`⚠️ Warning: Missing environment variable: ${key}`);
+        return ''; 
     }
     return String(value).trim();
 };

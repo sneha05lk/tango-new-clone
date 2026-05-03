@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { getRequiredEnv } = require('./security');
 
 const supabaseUrl = getRequiredEnv('SUPABASE_URL');

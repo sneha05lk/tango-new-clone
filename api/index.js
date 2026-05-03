@@ -3,19 +3,19 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const path = require('path');
-const { initDB } = require('./config/db');
-const { errorHandler, notFound } = require('./middlewares/errorMiddleware');
-const { getAllowedOrigins, isOriginAllowed, getRequiredEnv } = require('./config/security');
+const { initDB } = require('../server/config/db');
+const { errorHandler, notFound } = require('../server/middlewares/errorMiddleware');
+const { getAllowedOrigins, isOriginAllowed, getRequiredEnv } = require('../server/config/security');
 
 // Routes
-const authRoutes = require('./routes/auth');
-const streamRoutes = require('./routes/streams');
-const giftRoutes = require('./routes/gifts');
-const walletRoutes = require('./routes/wallet');
-const adminRoutes = require('./routes/admin');
-const livekitRoutes = require('./routes/livekit');
-const messageRoutes = require('./routes/messages');
-const userRoutes = require('./routes/users');
+const authRoutes = require('../server/routes/auth');
+const streamRoutes = require('../server/routes/streams');
+const giftRoutes = require('../server/routes/gifts');
+const walletRoutes = require('../server/routes/wallet');
+const adminRoutes = require('../server/routes/admin');
+const livekitRoutes = require('../server/routes/livekit');
+const messageRoutes = require('../server/routes/messages');
+const userRoutes = require('../server/routes/users');
 
 const app = express();
 const allowedOrigins = getAllowedOrigins();

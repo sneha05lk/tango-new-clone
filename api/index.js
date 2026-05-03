@@ -19,15 +19,14 @@ const userRoutes = require('../server/routes/users');
 
 const app = express();
 const allowedOrigins = getAllowedOrigins();
-const server = http.createServer(app);
 
-  // Relaxed CORS for Vercel deployment
-  app.use(cors({
-      origin: true,
-      credentials: true,
-  }));
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+// Relaxed CORS for Vercel deployment
+app.use(cors({
+    origin: true,
+    credentials: true,
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -42,6 +41,9 @@ app.use('/api/livekit', livekitRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 
+// Test Route to check if API is alive
+app.get('/api/test', (req, res) => res.json({ message: 'API is working!', timestamp: new Date().toISOString() }));
+
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
@@ -54,7 +56,6 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-
 // Catch-all: serve SPA for any non-API route
 app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
@@ -64,37 +65,8 @@ app.get(/^(?!\/api).*/, (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
-// Removed Socket.io handler for Vercel + Supabase Realtime
-
-// Export the app for Vercel Serverless Functions
+// Export the app for Vercel
 module.exports = app;
 
-// Initialize DB then start server
-const PORT = process.env.PORT || 3000;
-
-// Start the server only if we're not in a serverless environment (like Vercel)
-// or if we're running this file directly.
-const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL;
-
-if (!isVercel) {
-    getRequiredEnv('JWT_SECRET');
-    initDB();
-
-    server.on('error', (e) => {
-        if (e.code === 'EADDRINUSE') {
-            console.warn(`\n⚠️  Port ${PORT} is busy, trying ${parseInt(PORT) + 1}...`);
-            setTimeout(() => {
-                server.close();
-                server.listen(parseInt(PORT) + 1);
-            }, 1000);
-        }
-    });
-
-    server.listen(PORT, () => {
-        console.log(`\n🚀 TangoLive server running at http://localhost:${PORT}`);
-        console.log(`📺 Admin panel: http://localhost:${PORT}/admin.html`);
-    });
-} else {
-    // In Vercel, we still need to initialize the DB on the first cold start
-    initDB().catch(err => console.error("DB Init error in Vercel:", err));
-}
+// Initialize DB lazily
+initDB().catch(err => console.error("DB Init error in Vercel:", err));

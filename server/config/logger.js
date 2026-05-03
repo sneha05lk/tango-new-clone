@@ -1,6 +1,6 @@
 const winston = require('winston');
-const path = require('path');
 
+// On Vercel, we only log to the console to prevent crashes from disk access.
 const logger = winston.createLogger({
     level: 'info',
     format: winston.format.combine(
@@ -13,25 +13,10 @@ const logger = winston.createLogger({
                 winston.format.colorize(),
                 winston.format.simple()
             )
-        }),
-        new winston.transports.File({ 
-            filename: path.join(__dirname, '../logs/error.log'), 
-            level: 'error' 
-        }),
-        new winston.transports.File({ 
-            filename: path.join(__dirname, '../logs/combined.log') 
-        }),
+        })
     ],
 });
 
-// If not in production, log to console as well
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.simple()
-        ),
-    }));
-}
+// We removed the File transports here because Vercel is read-only.
 
 module.exports = logger;

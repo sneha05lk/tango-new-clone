@@ -1,4 +1,4 @@
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+// Environment variables are handled by Vercel natively.
 const express = require('express');
 const http = require('http');
 const cors = require('cors');

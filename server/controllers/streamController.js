@@ -147,7 +147,11 @@ const getStreamById = async (req, res) => {
 const createStream = async (req, res) => {
     const { title, category, type } = req.body;
     const roomName = `room_${Date.now()}_${req.user.id}`;
-    const thumbnail = req.file ? '/uploads/' + req.file.filename : '';
+    let thumbnail = '';
+    if (req.file) {
+        const base64Image = req.file.buffer.toString('base64');
+        thumbnail = `data:${req.file.mimetype};base64,${base64Image}`;
+    }
 
     try {
         // Close any existing live stream by this host

@@ -205,8 +205,8 @@ const getFollowing = async (req, res) => {
 const updateAvatar = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
     
-    // Path relative to 'client' folder for frontend access
-    const avatarPath = '/uploads/' + req.file.filename;
+    const base64Image = req.file.buffer.toString('base64');
+    const avatarPath = `data:${req.file.mimetype};base64,${base64Image}`;
     const userId = req.user.id;
 
     try {
